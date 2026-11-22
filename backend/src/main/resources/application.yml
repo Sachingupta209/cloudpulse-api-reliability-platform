@@ -1,0 +1,98 @@
+server:
+  port: ${SERVER_PORT:8081}
+  forward-headers-strategy: ${SERVER_FORWARD_HEADERS_STRATEGY:framework}
+  error:
+    include-message: always
+    include-binding-errors: always
+
+spring:
+  application:
+    name: cloudpulse-backend
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev}
+
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5435}/${DB_NAME:cloudpulse}
+    username: ${DB_USER:cloudpulse_user}
+    password: ${DB_PASSWORD:cloudpulse_secure_pass_change_me}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 15
+      minimum-idle: 5
+      idle-timeout: 300000
+      connection-timeout: 20000
+      max-lifetime: 1200000
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: false
+        jdbc:
+          time_zone: UTC
+
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    locations: classpath:db/migration
+
+  mail:
+    host: ${SPRING_MAIL_HOST:localhost}
+    port: ${SPRING_MAIL_PORT:1025}
+    username: ${SPRING_MAIL_USERNAME:}
+    password: ${SPRING_MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: ${SPRING_MAIL_AUTH:false}
+          starttls:
+            enable: ${SPRING_MAIL_STARTTLS:false}
+          connectiontimeout: 5000
+          timeout: 5000
+          writetimeout: 5000
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: when_authorized
+
+app:
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173,http://localhost:5174,http://localhost:3000,http://127.0.0.1:5173,http://127.0.0.1:5174,http://127.0.0.1:3000,http://16.178.228.216,https://16.178.228.216}
+  jwt:
+    secret: ${JWT_SECRET:4c6f756450756c736553757065725365637265744b6579323032365365637572654b65792121}
+    access-token-expiration-ms: ${JWT_EXPIRATION_MS:86400000} # 24 hours
+    refresh-token-expiration-ms: ${JWT_REFRESH_EXPIRATION_MS:604800000} # 7 days
+  monitoring:
+    core-pool-size: ${MONITORING_CORE_POOL_SIZE:10}
+    max-pool-size: ${MONITORING_MAX_POOL_SIZE:30}
+    queue-capacity: ${MONITORING_QUEUE_CAPACITY:500}
+    default-timeout-ms: ${MONITORING_DEFAULT_TIMEOUT_MS:10000}
+    max-timeout-ms: ${MONITORING_MAX_TIMEOUT_MS:30000}
+    max-response-body-bytes: ${MONITORING_MAX_RESPONSE_BODY_BYTES:1048576} # 1MB
+    failure-threshold-for-incident: 3
+  ssrf:
+    enabled: ${SSRF_PROTECTION_ENABLED:true}
+    allow-private-ips: ${SSRF_ALLOW_PRIVATE_IPS:false}
+  rate-limit:
+    auth-per-minute: ${AUTH_RATE_LIMIT_PER_MINUTE:15}
+    api-per-minute: ${API_RATE_LIMIT_PER_MINUTE:120}
+  notifications:
+    from-email: ${APP_NOTIFICATION_FROM:alerts@cloudpulse.io}
+    from-name: ${APP_NOTIFICATION_FROM_NAME:CloudPulse Alerts}
+    max-retries: 3
+    retry-delay-ms: 1000
+
+logging:
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS,UTC} [%thread] %-5level %logger{36} - %msg%n"
+  level:
+    root: INFO
+    com.cloudpulse: DEBUG

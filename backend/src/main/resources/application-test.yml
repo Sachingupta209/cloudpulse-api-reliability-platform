@@ -1,0 +1,52 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:cloudpulsetest;DB_CLOSE_DELAY=-1;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE
+    username: sa
+    password: 
+    driver-class-name: org.h2.Driver
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+  sql:
+    init:
+      mode: always
+  flyway:
+    enabled: false
+  mail:
+    host: localhost
+    port: 1025
+    test-connection: false
+
+server:
+  port: 0
+
+app:
+  jwt:
+    secret: 4c6f756450756c736553757065725365637265744b6579323032365365637572654b65792121
+    access-token-expiration-ms: 3600000
+    refresh-token-expiration-ms: 86400000
+  notifications:
+    from-email: test-alerts@cloudpulse.io
+    from-name: CloudPulse Test Alerts
+    max-retries: 2
+    retry-delay-ms: 100
+  ssrf:
+    enabled: true
+    allow-private-ips: false
+  monitoring:
+    core-pool-size: 5
+    max-pool-size: 10
+    queue-capacity: 100
+    default-timeout-ms: 5000
+    max-timeout-ms: 10000
+    max-response-body-bytes: 1048576
+    failure-threshold-for-incident: 3
+    scheduler-interval-ms: 60000
+  rate-limit:
+    auth-per-minute: 1000
+    api-per-minute: 5000

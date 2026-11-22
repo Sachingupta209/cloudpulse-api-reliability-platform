@@ -1,0 +1,28 @@
+server:
+  forward-headers-strategy: framework
+  error:
+    include-message: never
+    include-binding-errors: never
+
+spring:
+  jpa:
+    show-sql: false
+    hibernate:
+      ddl-auto: validate
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+  datasource:
+    hikari:
+      maximum-pool-size: ${DB_POOL_MAX:8}
+      minimum-idle: ${DB_POOL_MIN:2}
+      idle-timeout: 300000
+      connection-timeout: 20000
+      max-lifetime: 1200000
+
+logging:
+  level:
+    root: INFO
+    com.cloudpulse: INFO
+    org.springframework.web: WARN
+    org.hibernate: WARN
