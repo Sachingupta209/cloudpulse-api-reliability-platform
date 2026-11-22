@@ -1,300 +1,495 @@
-# CloudPulse — API Reliability & Smart Health Validation Platform
 
-[![Build & Verification](https://github.com/cloudpulse/cloudpulse/actions/workflows/ci.yml/badge.svg)](https://github.com/cloudpulse/cloudpulse/actions)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.3.5-brightgreen.svg)](https://spring.io/projects/spring-boot)
-[![Java](https://img.shields.io/badge/Java-21-orange.svg)](https://www.oracle.com/java/)
-[![React](https://img.shields.io/badge/React-18-blue.svg)](https://react.dev/)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5-blue.svg)](https://www.typescriptlang.org/)
-[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-blue.svg)](https://www.postgresql.org/)
-[![Tests](https://img.shields.io/badge/Tests-167%20Passed%20(129%20Backend%20+%2038%20Frontend)-success.svg)](backend/src/test)
+# CloudPulse – API Reliability & Smart Health Validation Platform
 
-CloudPulse is a production-grade, full-stack API reliability, uptime monitoring, and smart health validation platform. It is engineered to solve a fundamental flaw in traditional monitoring tools: **traditional uptime monitors report `HTTP 200 OK` as healthy even when an API endpoint returns hidden application-level failures, depleted database pools, or invalid payloads.**
+![Java](https://img.shields.io/badge/Java-21-orange)
+![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.x-brightgreen)
+![React](https://img.shields.io/badge/React-18-blue)
+![TypeScript](https://img.shields.io/badge/TypeScript-5-blue)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-blue)
+![Docker](https://img.shields.io/badge/Docker-Containerized-blue)
 
-CloudPulse inspects actual HTTP response payloads using a high-performance **Smart API Validation Engine**, detects anomalies statistically, manages incidents with automatic recovery, sends transactional notifications with crash recovery, publishes tenant-isolated public status pages, and generates audit-ready PDF SLA compliance reports.
+**CloudPulse** is a full-stack website and API reliability monitoring platform designed to monitor service availability, validate API responses, detect failures, track incidents, and analyze application performance.
+
+Unlike basic uptime monitoring, CloudPulse can identify application-level failures even when an API returns HTTP 200 OK.
 
 ---
 
-## 1. High-Level Architecture
+## Table of Contents
 
-CloudPulse follows a modular monolith design with strict layer separation, transaction boundaries, and tenant isolation:
+- Overview
+- Problem Statement
+- Key Features
+- Architecture
+- Technology Stack
+- How It Works
+- Smart API Validation
+- REST API Endpoints
+- Database Design
+- Security
+- Getting Started
+- Testing
+- Future Enhancements
 
+---
+
+## 1. Overview
+
+Traditional uptime monitoring systems primarily check whether a website or API responds successfully.
+
+However, an API can return HTTP 200 OK while its response contains an application-level error.
+
+CloudPulse addresses this limitation through configurable response validation, scheduled health checks, incident management, and reliability analytics.
+
+It provides a centralized dashboard to monitor multiple websites and APIs from one platform.
+
+## 2. Problem Statement
+
+Traditional monitoring tools may fail to identify:
+
+- APIs returning HTTP 200 with incorrect application data.
+- Missing or invalid JSON response fields.
+- Slow API responses.
+- Repeated service failures.
+- Unexpected changes in service availability.
+
+**Our Solution:** CloudPulse combines HTTP monitoring with smart response validation and incident tracking to provide deeper visibility into service health.
+
+---
+
+## 3. Key Features
+
+### Authentication and Security
+- User registration and login.
+- JWT-based authentication.
+- Refresh token management.
+- BCrypt password hashing.
+- User-level resource isolation.
+
+### Website and API Monitoring
+- Monitor multiple websites and APIs.
+- Support HTTP methods such as GET, POST, PUT, PATCH, DELETE and HEAD.
+- Configure monitoring intervals and timeouts.
+- Custom request headers and request bodies.
+- Pause, resume and manually trigger checks.
+
+### Smart API Validation
+- HTTP status validation.
+- Response-time and SLA validation.
+- JSON syntax validation.
+- JSONPath field existence checks.
+- JSONPath value comparison.
+- HTTP response header validation.
+
+### Incident Management
+- Detect consecutive monitoring failures.
+- Automatically create incidents after repeated failures.
+- Track downtime and recovery.
+- Prevent duplicate open incidents.
+- Acknowledge detected anomalies.
+
+### Dashboard and Analytics
+- Overall service health.
+- Uptime monitoring.
+- Response-time trends.
+- Incident history.
+- P95 and P99 latency.
+- MTTR and MTBF metrics.
+- Statistical anomaly detection.
+
+### Notifications and Reports
+- Transactional notification outbox.
+- Retry processing for failed notifications.
+- Mailpit integration for local email testing.
+- PDF monitoring reports.
+- Public status pages.
+
+### Additional Capabilities
+- Light, Dark and System themes.
+- SSRF protection.
+- Rate limiting.
+- Scheduled monitoring using Spring Scheduler.
+- Distributed scheduling locks using ShedLock.
+
+---
+
+## 4. System Architecture
+
+```text
+             CLIENT / BROWSER
+                    |
+                    v
+          REACT + TYPESCRIPT
+                    |
+                    v
+             AXIOS REQUEST
+                    |
+                    v
+          SPRING BOOT REST APIs
+                    |
+          SPRING SECURITY + JWT
+                    |
+          +---------+----------+
+          |         |          |
+          v         v          v
+       Monitor  Validation  Analytics
+      Management  Engine     Engine
+          |         |          |
+          +---------+----------+
+                    |
+                    v
+            SCHEDULED CHECKS
+             SPRING SCHEDULER
+                    |
+                    v
+              JAVA HTTP CLIENT
+                    |
+                    v
+          EXTERNAL WEBSITES/APIs
+                    |
+                    v
+           RESPONSE VALIDATION
+                    |
+                    v
+              POSTGRESQL
+                    |
+          +---------+----------+
+          |         |          |
+          v         v          v
+       Dashboard Incidents Notifications
+          |
+          v
+       Analytics & Reports
 ```
-                                  [ Client Browser ]
-                     (React 18 / TypeScript / Tailwind CSS / Recharts)
-                                          │
-                        HTTP / REST APIs (JWT Bearer Token)
-                                          │
-                                          ▼
-                             [ Spring Boot 3.3.5 API ]
-  ┌─────────────────────────────────────────────────────────────────────────────┐
-  │  Rate Limiting Filter  ──▶  Spring Security  ──▶  JWT AuthenticationFilter │
-  └──────────────────────────────────────┬──────────────────────────────────────┘
-                                         │
-        ┌────────────────────────────────┼────────────────────────────────┐
-        ▼                                ▼                                ▼
-[ Monitor Management ]        [ Validation Engine ]            [ Anomaly Detection ]
-- Multi-protocol (GET/POST)   - JSONPath Assertions            - Z-score (z >= 3.0)
-- Custom headers & body       - SLA Latency Limits             - Failure Burst (3+)
-- Tenant-scoped CRUD          - Syntax Validation              - Rolling Uptime Drop
-        │                                │                                │
-        ▼                                ▼                                ▼
-[ ShedLock Scheduler ]        [ SSRF Protection Client ]       [ Transactional Outbox ]
-- Distributed PostgreSQL Lock - RFC1918 Private IP Block       - At-least-once delivery
-- Overlap Prevention          - AWS/GCP Metadata Block         - Atomic DB Leases
-- Concurrency Throttle        - DNS Re-validation              - Worker Crash Recovery
-        │                                │                                │
-        └────────────────────────────────┼────────────────────────────────┘
-                                         │
-                                         ▼
-                             [ PostgreSQL 16 Database ]
-               Flyway Migrations (V1 __init -> V5 __create_anomalies)
-```
 
 ---
 
-## 2. Core Functional Modules
-
-### 2.1 Smart API Validation Engine
-- **JSONPath Value Assertions**: Compares actual vs expected values (e.g., `$.status == "success"`, `$.data.user != null`).
-- **Hidden Outage Detection**: Identifies endpoints returning `HTTP 200 OK` with payload bodies such as `{"status":"error","message":"Database connection pool exhausted"}` and flags them as true outages.
-- **SLA Latency Enforcement**: Verifies response latency against configured SLA thresholds in milliseconds.
-- **JSON Syntax & Field Verification**: Guards against malformed payloads and missing contract fields.
-
-### 2.2 Multi-Layer SSRF Defense-in-Depth
-- **Pre-Connection Validation**: Enforces scheme whitelisting (`http`/`https`), strips credentials from URLs, and restricts dangerous port ranges.
-- **DNS Resolution Check**: Prohibits loopback (`127.0.0.0/8`, `::1`), RFC 1918 private subnets (`10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`), Link-Local addresses, and cloud metadata services (`169.254.169.254`, `metadata.google.internal`).
-- **Redirect Re-Validation**: Intercepts 301/302/307/308 HTTP redirects and re-validates the destination URL to prevent intranet pivoting.
-- **Payload & Connection Bounds**: Enforces maximum response body sizes (1 MB) and strict socket timeouts to prevent memory exhaustion and slowloris attacks.
-
-### 2.3 Adaptive Theme System (Light, Dark, System)
-- **Three-Mode Operation**: Seamless switching between Light, Dark, and OS-synchronized System modes.
-- **Zero-FOUC Guarantee**: Inline DOM script initializes root classes before paint.
-- **Dynamic Chart Palette**: Chart canvas and tooltip tokens adapt dynamically to contrast and theme state.
-
-### 2.4 Phase 2.1 — Transactional Outbox Email Notifications
-- **At-Least-Once Delivery**: Transactional Outbox pattern guarantees no alert is lost during network partitions or crashes.
-- **Concurrency & Lease Ownership**: Atomic database row claiming (`lease_until`, `claimed_by`) prevents race conditions between parallel workers.
-- **Worker Crash Recovery**: Background reaper recovers stale `IN_FLIGHT` leases automatically.
-- **Mailpit Integration**: Local zero-cost SMTP development server with web interface on port `8025`.
-
-### 2.5 Phase 2.2 — Public Status Pages
-- **Privacy by Default**: Pages default to `is_published: false` until explicitly published.
-- **Vanity URL Slug Generation**: Cryptographically secure random slugs with custom vanity support and collision retry.
-- **Accurate Uptime Math**: Formula $Uptime = (N_{success} / N_{valid}) \times 100$, with distinct `NO_DATA` states when no checks exist.
-- **Private Data Sanitization**: Public DTOs strictly redact internal URLs, headers, payloads, and validation rules.
-- **30-Day Incident History**: Displays recent incident durations and root cause notes.
-
-### 2.6 Phase 2.3 — PDF Monitoring & SLA Audit Reports
-- **Powered by OpenPDF 2.0.3**: Pure Java document generation with zero external cloud dependencies.
-- **Four Audit Templates**:
-  1. *Portfolio Executive Summary*: Consolidated health overview of all monitors.
-  2. *Single Monitor SLA Report*: Latency percentiles (P95, P99), uptime %, and check distributions.
-  3. *Incident Audit Log*: Historical downtime duration and recovery post-mortems for compliance audits.
-  4. *Performance & SLA SLA Report*: Latency distributions, throughput metrics, and SLA violations.
-- **Instant Browser Download**: Streams `application/pdf` with compliant `Content-Disposition` headers.
-
-### 2.7 Phase 2.4 — Advanced Analytics & Statistical Anomaly Detection
-- **Z-Score Latency Spikes**: Detects statistically anomalous latency spikes ($Z \ge 3.0$ or $\ge 2.5\times$ baseline).
-- **Failure Bursts**: Flags multiple consecutive check failures with severity grading (`CRITICAL`, `HIGH`, `MEDIUM`, `LOW`).
-- **Uptime Degradation**: Identifies monitors where rolling 24-hour uptime drops below 95%.
-- **Reliability Metrics**:
-  - **MTTR (Mean Time to Recovery)**: Average incident duration from detection to recovery.
-  - **MTBF (Mean Time Between Failures)**: Average operational uptime hours between incidents.
-  - **P95 / P99 Tail Latencies**: High-percentile latency distributions.
-  - **1-Click Acknowledge**: Operations dashboard with audit trail and unacknowledged alert counters.
-
----
-
-## 3. Technology Stack
+## 5. Technology Stack
 
 | Layer | Technologies |
-| :--- | :--- |
-| **Backend** | Java 21, Spring Boot 3.3.5, Spring Security, JWT (HMAC-SHA256), Spring Data JPA, Hibernate 6 |
-| **PDF Engine** | OpenPDF 2.0.3 (LibrePDF) |
-| **Scheduling** | ShedLock (PostgreSQL-backed distributed locking) |
-| **Database** | PostgreSQL 16, Flyway Database Migrations (V1 through V5) |
-| **Frontend** | React 18, TypeScript 5, Vite 5, Tailwind CSS, Recharts, Lucide Icons, Axios |
-| **Email Server** | Mailpit (Local SMTP on port 1025, Web UI on port 8025) |
-| **Containers** | Docker, Docker Compose, Multi-stage builds |
-| **CI/CD** | GitHub Actions Pipeline (`.github/workflows/ci.yml`) |
+|---|---|
+| Programming Language | Java 21 |
+| Backend Framework | Spring Boot |
+| Security | Spring Security, JWT, BCrypt |
+| Frontend | React, TypeScript, Vite |
+| UI Styling | Tailwind CSS |
+| HTTP Client | Axios, Java HTTP Client |
+| Database | PostgreSQL |
+| ORM | Spring Data JPA, Hibernate |
+| Database Migration | Flyway |
+| JSON Validation | Jayway JsonPath |
+| Scheduling | Spring Scheduler, ShedLock |
+| PDF Generation | OpenPDF |
+| Charts | Recharts |
+| Build Tool | Maven |
+| Containerization | Docker, Docker Compose |
+| CI | GitHub Actions |
+| Email Testing | Mailpit |
 
 ---
 
-## 4. REST API Endpoint Reference
+## 6. How CloudPulse Works
 
-### Authentication (`/api/auth`)
-- `POST /api/auth/register` — Create a new user account.
-- `POST /api/auth/login` — Authenticate and receive JWT access and refresh tokens.
-- `POST /api/auth/refresh` — Rotate refresh token and obtain a new access token.
-- `GET /api/auth/me` — Retrieve the currently authenticated user's profile.
-
-### Monitors (`/api/monitors`)
-- `GET /api/monitors` — List all monitors owned by the authenticated tenant.
-- `POST /api/monitors` — Create a new monitor with validation rules (SSRF checked).
-- `GET /api/monitors/{id}` — Get monitor details with latest check results and validation rules.
-- `PUT /api/monitors/{id}` — Update monitor configuration (interval, timeout, validation rules).
-- `DELETE /api/monitors/{id}` — Delete a monitor and its historical telemetry.
-- `POST /api/monitors/{id}/check` — Trigger an immediate on-demand probe check.
-- `POST /api/monitors/{id}/pause` — Pause monitor execution.
-- `POST /api/monitors/{id}/resume` — Resume monitor execution.
-
-### Public Status Pages (`/api/status-pages` & `/api/public/status`)
-- `GET /api/status-pages` — List tenant's status pages.
-- `POST /api/status-pages` — Create a new status page (private by default).
-- `PUT /api/status-pages/{id}` — Update status page title, description, slug, or monitors.
-- `PATCH /api/status-pages/{id}/publish` — Toggle status page publish state (`true`/`false`).
-- `DELETE /api/status-pages/{id}` — Delete a status page.
-- `GET /api/public/status/{slug}` — Anonymous public view of a published status page (private data stripped).
-
-### PDF Monitoring Reports (`/api/reports`)
-- `GET /api/reports/monitors/{id}/pdf` — Download Single Monitor SLA PDF Report.
-- `GET /api/reports/summary/pdf` — Download Portfolio Executive Summary PDF Report.
-- `GET /api/reports/incidents/pdf` — Download Incident & Downtime Audit Log PDF Report.
-- `GET /api/reports/performance/pdf` — Download Latency & SLA Performance PDF Report.
-
-### Statistical Anomalies & Analytics (`/api/anomalies` & `/api/analytics`)
-- `GET /api/analytics/dashboard` — Overview metrics, trends, and recent incidents.
-- `GET /api/analytics/advanced` — MTTR, MTBF, P95/P99 latencies, window uptimes (24h/7d/30d).
-- `GET /api/anomalies` — Paginated list of detected anomalies for tenant.
-- `GET /api/anomalies/monitors/{monitorId}` — Anomalies for a specific monitor.
-- `POST /api/anomalies/{id}/acknowledge` — Mark an anomaly as acknowledged.
-- `GET /api/anomalies/unacknowledged-count` — Count of unacknowledged anomalies.
-
-### Notifications (`/api/notifications`)
-- `GET /api/notifications/preferences` — Get email preferences and triggers.
-- `PUT /api/notifications/preferences` — Update preferences and notification triggers.
-- `GET /api/notifications/history` — Paginated delivery audit log (SENT, FAILED, SKIPPED).
-- `POST /api/notifications/test` — Dispatch an immediate test email alert.
+1. The user registers and logs into CloudPulse.
+2. The user adds a website or API monitor.
+3. The backend validates and stores monitor configuration.
+4. Spring Scheduler identifies monitors that are due for checking.
+5. Java HTTP Client sends an HTTP request to the target.
+6. The Validation Engine checks status, response time, headers and JSON data.
+7. Monitoring results are stored in PostgreSQL.
+8. Repeated failures can generate incidents.
+9. Recovery checks can automatically resolve incidents.
+10. The dashboard displays monitoring results and analytics.
 
 ---
 
-## 5. Database Schema & Migration History
+## 7. Smart API Validation Example
 
-CloudPulse strictly utilizes Flyway for schema versioning:
+Consider an API that returns:
 
-1. **`V1__init_schema.sql`**: Users, Monitors, Validation Rules, Check Results, Incidents, ShedLock tables.
-2. **`V2__create_notifications_schema.sql`**: Notification Preferences, Triggers, and Notification History.
-3. **`V3__harden_notifications_outbox.sql`**: Transactional outbox with `idempotency_key`, atomic lease claiming (`claimed_by`, `lease_until`), and delivery status.
-4. **`V4__create_status_pages_schema.sql`**: Public status pages with unique vanity slugs, `is_published DEFAULT FALSE`, and monitor mapping table.
-5. **`V5__create_anomalies_schema.sql`**: Anomaly detection schema with `anomaly_type`, `severity`, `observed_value`, `baseline_value`, and acknowledgment tracking.
+```json
+{
+  "status": "error",
+  "message": "Database connection failed"
+}
+```
+
+The HTTP response status might still be:
+
+```http
+HTTP/1.1 200 OK
+```
+
+A basic uptime checker may consider this request successful.
+
+CloudPulse can use a JSONPath rule:
+
+```text
+Target: $.status
+Expected Value: success
+```
+
+Since the actual value is `error`, CloudPulse identifies an application-level failure.
+
+This is one of the important capabilities of the platform.
 
 ---
 
-## 6. Getting Started & Deployment
+## 8. REST API Endpoint Reference
 
-### Quickstart with Docker Compose (Recommended)
+### Authentication
+
+| Method | Endpoint | Description |
+|---|---|---|
+| POST | /api/auth/register | Register user |
+| POST | /api/auth/login | Authenticate user |
+| POST | /api/auth/refresh | Refresh access token |
+| GET | /api/auth/me | Get current user |
+
+### Monitor Management
+
+| Method | Endpoint | Description |
+|---|---|---|
+| GET | /api/monitors | List monitors |
+| POST | /api/monitors | Create monitor |
+| GET | /api/monitors/{id} | Get monitor |
+| PUT | /api/monitors/{id} | Update monitor |
+| DELETE | /api/monitors/{id} | Delete monitor |
+| POST | /api/monitors/{id}/check | Trigger manual check |
+| POST | /api/monitors/{id}/pause | Pause monitor |
+| POST | /api/monitors/{id}/resume | Resume monitor |
+
+### Analytics and Anomalies
+
+| Method | Endpoint | Description |
+|---|---|---|
+| GET | /api/analytics/dashboard | Dashboard analytics |
+| GET | /api/analytics/advanced | Advanced reliability metrics |
+| GET | /api/anomalies | List anomalies |
+| POST | /api/anomalies/{id}/acknowledge | Acknowledge anomaly |
+
+### Notifications
+
+| Method | Endpoint | Description |
+|---|---|---|
+| GET | /api/notifications/preferences | Get preferences |
+| PUT | /api/notifications/preferences | Update preferences |
+| GET | /api/notifications/history | View notification history |
+| POST | /api/notifications/test | Test notification |
+
+### Public Status Pages
+
+| Method | Endpoint | Description |
+|---|---|---|
+| GET | /api/status-pages | List status pages |
+| POST | /api/status-pages | Create status page |
+| PATCH | /api/status-pages/{id}/publish | Publish status page |
+| GET | /api/public/status/{slug} | View public status |
+
+### PDF Reports
+
+| Method | Endpoint | Description |
+|---|---|---|
+| GET | /api/reports/monitors/{id}/pdf | Monitor SLA report |
+| GET | /api/reports/summary/pdf | Portfolio report |
+| GET | /api/reports/incidents/pdf | Incident report |
+| GET | /api/reports/performance/pdf | Performance report |
+
+---
+
+## 9. Database Design
+
+CloudPulse uses PostgreSQL for persistent storage.
+
+Main database entities include:
+
+- Users
+- Refresh Tokens
+- Monitors
+- Validation Rules
+- Check Results
+- Incidents
+- Notification Preferences
+- Notification History
+- Status Pages
+- Anomalies
+- ShedLock
+
+**Flyway** manages version-controlled database schema migrations.
+
+---
+
+## 10. Security Implementation
+
+Security is an important part of CloudPulse.
+
+Implemented security mechanisms include:
+
+- JWT-based authentication.
+- BCrypt password hashing.
+- Spring Security.
+- User-level resource isolation.
+- Request validation.
+- Rate limiting.
+- SSRF protection.
+- Private IP and cloud metadata address restrictions.
+- HTTP redirect destination validation.
+- Response body size limits.
+
+### What is SSRF protection?
+
+SSRF stands for Server-Side Request Forgery.
+
+CloudPulse accepts URLs for monitoring. An attacker could attempt to make the backend send requests to internal or restricted resources.
+
+SSRF protection validates target URLs and blocks unsafe destinations.
+
+---
+
+## 11. Getting Started
+
+### Prerequisites
+
+Install:
+
+- Java 21
+- Maven
+- Node.js and npm
+- PostgreSQL
+- Docker Desktop
+
+### Clone the Repository
 
 ```bash
-# 1. Clone repository
-git clone https://github.com/cloudpulse/cloudpulse.git
-cd cloudpulse
+git clone https://github.com/Sachingupta209/cloudpulse-api-reliability-platform.git
 
-# 2. Configure environment variables (defaults work out of the box)
+cd cloudpulse-api-reliability-platform
+```
+
+### Configure Environment Variables
+
+Create your local environment file using the provided example:
+
+```bash
 cp .env.example .env
+```
 
-# 3. Build and launch all 4 containers in the background
+Update the required configuration values in `.env`.
+
+Never commit your actual `.env` file or credentials.
+
+### Run with Docker Compose
+
+```bash
 docker compose up -d --build
+```
 
-# 4. Verify running services
+Check running containers:
+
+```bash
 docker compose ps
 ```
 
-### Active Service Ports
-| Service | Internal Port | Host Port | Description |
-| :--- | :--- | :--- | :--- |
-| **Frontend** | `80` (Nginx) | `http://localhost:5174` | Web Application UI & Public Status Pages |
-| **Backend** | `8081` | `http://localhost:8081` | REST APIs & Actuator Health Endpoint |
-| **PostgreSQL**| `5432` | `localhost:5435` | Database with persistent volume storage |
-| **Mailpit** | `1025` (SMTP) / `8025` (HTTP) | `http://localhost:8025` | Webmail interface for inspecting email alerts |
+Stop services:
 
-### Verification Endpoints
-- **Application Dashboard**: [http://localhost:5174/dashboard](http://localhost:5174/dashboard)
-- **Actuator Health Check**: [http://localhost:8081/actuator/health](http://localhost:8081/actuator/health)
-- **Mailpit Email Inbox**: [http://localhost:8025](http://localhost:8025)
+```bash
+docker compose down
+```
+
+### Local Service URLs
+
+| Service | URL |
+|---|---|
+| Frontend | http://localhost:5174 |
+| Backend | http://localhost:8081 |
+| PostgreSQL | localhost:5435 |
+| Mailpit | http://localhost:8025 |
+| Health Check | http://localhost:8081/actuator/health |
+
+These URLs assume the default local Docker Compose port mappings.
 
 ---
 
-## 7. Verification & Automated Test Results
+## 12. Testing
 
-The CloudPulse platform is covered by comprehensive unit, integration, and security test suites across both backend and frontend:
+### Backend Tests
 
-### Backend Test Results (Maven / JUnit 5 / Mockito)
 ```bash
 cd backend
 mvn test
 ```
-```
-[INFO] Results:
-[INFO] Tests run: 129, Failures: 0, Errors: 0, Skipped: 0
-[INFO] BUILD SUCCESS
-```
 
-- **SsrfProtectionServiceTest** (17 tests): Loopback, RFC1918, AWS metadata (`169.254.169.254`), GCP metadata, redirect pivoting, IPv6 unique local.
-- **ValidationEngineTest** (6 tests): JSONPath assertions, SLA latency limits, HTTP 200 payload error detection, header matches.
-- **IncidentServiceTest** (4 tests): 3-strike failure threshold escalation, duplicate alert suppression, auto-recovery downtime calculation.
-- **NotificationModuleTest** (25 tests): Transactional outbox, atomic claiming, worker crash recovery, retry backoff, lease expiration.
-- **StatusPageTest Suite** (18 tests): Slug generation, collision safety, uptime calculation, private data redacting, anonymous access.
-- **ReportTest Suite** (13 tests): OpenPDF rendering, date-range bounds, P95/P99 latency math, tenant isolation.
-- **AnomalyDetectionTest Suite** (12 tests): Z-score latency spike detection, failure bursts, rolling uptime degradation, MTTR/MTBF math, acknowledgment.
-- **AuthControllerTest & SecurityTest** (34 tests): JWT rotation, RBAC, Rate limiting filter, tenant isolation.
+### Frontend Tests
 
-### Frontend Test Results (Node Test Runner / React)
 ```bash
 cd frontend
+npm install
 npm test
 ```
-```
-ℹ tests 38
-ℹ suites 6
-ℹ pass 38
-ℹ fail 0
-ℹ cancelled 0
-ℹ skipped 0
-```
-- **Application Theme Suite** (8 tests): Light/Dark/System resolution, zero-FOUC script, localStorage persistence, chart color tokens.
-- **Edit Monitor Suite** (8 tests): Client validation, JSON formatting, SLA rule types, header matching.
-- **Notification Suite** (6 tests): Preference toggles, delivery badge formatting, audit pagination.
-- **Status Pages Suite** (6 tests): Private-by-default, vanity slug regex, overall status computation, uptime denominator accuracy.
-- **PDF Reports Suite** (5 tests): Preset date ranges, endpoint resolution, filename parsing from headers, SLA statistics math.
-- **Advanced Analytics & Anomalies Suite** (5 tests): Z-score computation, severity mapping, MTTR math, MTBF math, category filtering.
+
+The project includes backend and frontend tests covering areas such as:
+
+- Authentication and authorization.
+- SSRF protection.
+- API response validation.
+- Incident creation and recovery.
+- Notification processing.
+- Status pages.
+- PDF report generation.
+- Analytics and anomaly detection.
 
 ---
 
-## 8. Academic Demonstration & Submission Checklist
+## 13. Screenshots
 
-For university examiners, capstone reviewers, and technical interviewers, use this step-by-step walkthrough:
+Add screenshots from your actual running application here.
 
-1. **System Health Verification**:
-   - Open [http://localhost:8081/actuator/health](http://localhost:8081/actuator/health) -> verify status `UP`.
-   - Open [http://localhost:5174](http://localhost:5174) -> log in with `testuser@cloudpulse.io` / `Password123!`.
-2. **Adaptive Theme Demonstration**:
-   - Toggle between Light, Dark, and System in the top bar. Note zero-FOUC instant re-rendering and dynamic chart recoloring.
-3. **Smart API Validation & Incident Escalation**:
-   - Navigate to **New Monitor** -> configure an endpoint with Smart JSONPath Validation (e.g. `$.status == "success"` and latency `< 500ms`).
-   - Trigger a simulated failure: witness consecutive failure counter increment.
-   - On 3 consecutive failures: observe instant escalation to an **Incident** and outbox email alert sent to Mailpit ([http://localhost:8025](http://localhost:8025)).
-4. **Public Status Page Showcase**:
-   - Navigate to **Status Pages** -> click **New Status Page**.
-   - Note private-by-default switch (`isPublished: false`).
-   - Toggle to published, copy public vanity URL (e.g., `/status/acme-status`).
-   - Open in an incognito window: observe public view displaying operational status, uptime (24h/7d/30d), and 30-day incident log with zero internal credentials leaked.
-5. **Audit-Ready PDF Reports**:
-   - Navigate to **Reports** -> select **Portfolio Summary** or **Single Monitor SLA Report**.
-   - Choose a date range (e.g., Last 7 Days) -> click **Generate & Download PDF**.
-   - Open downloaded PDF: observe header, executive summary, latency SLA percentiles (P95, P99), and incident resolution audit logs rendered via OpenPDF.
-6. **Statistical Anomaly Detection & Reliability Analytics**:
-   - Navigate to **Analytics** -> inspect MTTR, MTBF, and tail latencies.
-   - Review the **Anomaly Detection Center**: observe detected latency spikes (Z-score &ge; 3.0) and failure bursts.
-   - Click **Acknowledge** on an anomaly: observe instant state update and counter decrement.
-7. **Automated Test Run**:
-   - Execute `cd backend && mvn test` (129 tests passed).
-   - Execute `cd frontend && npm test` (38 tests passed).
+### Dashboard
+
+![CloudPulse Dashboard](docs/screenshots/dashboard.png)
+
+### Monitor Management
+
+![Monitor Management](docs/screenshots/monitors.png)
+
+### Incident Management
+
+![Incident Management](docs/screenshots/incidents.png)
+
+### Analytics
+
+![CloudPulse Analytics](docs/screenshots/analytics.png)
 
 ---
 
-## 9. Zero-Budget & Security Compliance
+## 14. Future Enhancements
 
-CloudPulse is developed under strict zero-budget compliance (₹0 incurred). All infrastructure, databases, mail catchers, and monitoring probes execute locally inside optimized Docker containers. No paid cloud subscriptions or billable external APIs are utilized. Production cloud migration paths are documented in [AWS_DEPLOYMENT.md](file:///d:/Projects/CloudPulse/AWS_DEPLOYMENT.md).
-#   c l o u d p u l s e - a p i - r e l i a b i l i t y - p l a t f o r m  
- 
+- AI-powered failure analysis.
+- Intelligent root-cause recommendations.
+- Controlled automated recovery.
+- Multi-region monitoring.
+- Advanced dependency monitoring.
+- Enhanced observability and reporting.
+
+---
+
+## 15. Project Information
+
+**Project Name:** CloudPulse – API Reliability & Smart Health Validation Platform
+
+**Primary Focus:** Backend Development, API Monitoring, Cloud Computing and DevOps.
+
+**Author:** Sachin Gupta
+
+**GitHub Repository:**
+
+https://github.com/Sachingupta209/cloudpulse-api-reliability-platform
+
+---
+
+## 16. License
+
+Add a license file if you intend to publish this project under an open-source license. Until then, all rights are reserved by the project owner.
+
+---
+
+**CloudPulse – Monitor Better. Detect Earlier. Build Reliable Services.**
