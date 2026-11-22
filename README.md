@@ -486,10 +486,4 @@ https://github.com/Sachingupta209/cloudpulse-api-reliability-platform
 
 ---
 
-## 16. License
-
-Add a license file if you intend to publish this project under an open-source license. Until then, all rights are reserved by the project owner.
-
----
-
 **CloudPulse – Monitor Better. Detect Earlier. Build Reliable Services.**
